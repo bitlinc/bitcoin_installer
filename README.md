@@ -14,7 +14,7 @@
     ## Increate open files limit
 ########################################################################################################################################
 
-## Functions
+## User Functions
 
 # Hides the output of shell command 
     function suppress () { 
@@ -44,7 +44,7 @@
     }
 
 ######################################################################################################################
-# Setup bash 
+# Script Functions  
     function setup_Bash { 
         mkdir /home/pi/download && cd /home/pi/download
         rm -rf /home/admin/.bashrc
@@ -70,23 +70,37 @@
 
 # Step 2: Creates a text doc on desktop with the hostname provided by the user - GLOBAL VARABLE -> USERGIVENHOSTNAME    
     function create_Hostname () {
-        cd ~/Desktop
+        cd /home/pi/Desktop
         touch hostname
         echo "$USERGIVENHOSTNAME" >> /home/pi/Desktop/hostname
-        sudo rm -rf /etc/hostname./
+        sudo rm -rf /etc/hostname
         sudo mv /home/pi/Desktop/hostname /etc/hostname
         source /home/pi/.bashrc
-        source ~/.profile
-        sleep 2.0
-        
+        source ~/.profile        
     }  
+
+# Step 2: Creates a text doc on desktop with the hostname provided by the user - GLOBAL VARABLE -> USERGIVENHOSTNAME    
+    function create_Hosts () {
+        sudo rm -rf /etc/hosts
+        cd ~/Desktop
+        sudo wget https://raw.githubusercontent.com/bitlinc/pi_hosts/master/README.md
+        sudo mv /home/pi/Desktop/README.md /etc/hosts
+        source /home/pi/.bashrc
+        source ~/.profile     
+    }  
+
 # Step 2: Removes default /etc/hostname file and replaces it with one creaded above - edits the /etc/hosts file - sets hostname - reboots bash / .profile / avahi-deamon      
     function change_Hosts {
         sudo sed -i -e "s/raspberrypi/$USERGIVENHOSTNAME/" /etc/hosts
         sudo hostnamectl set-hostname "$USERGIVENHOSTNAME"
         sudo systemctl restart avahi-daemon
-    }         
-
+    }     
+# Step 2: Removes default /etc/hostname Parent Function      
+    function change_Hostname_Hosts_Parent {
+        create_Hostname
+        create_Hosts
+        change_Hosts  
+    }          
 
 #  Step 3: Install the necessary software packages: [apt-get install htop git curl bash-completion jq dphys-swapfile dirmngr] then apt-get update / upgrade   
     function install_Packges {
@@ -95,43 +109,56 @@
         apt-get upgrade -y
         apt autoremove -y
         sleep 2.0
-    }    
+    }   
+
 # Step 3: Install the necessary software packages: START
     function install_Packages_Start {
         echo ""
         echo "Download necessary software packages"
+        echo ""
         echo "This will take about ~10 minutes to complete depending on your internet connection"
         echo ""
+        sleep 1.25
         echo "Installing packages ..."
         echo ""
     }
+    
 # Step 3: Install the necessary software packages: SUCCESSFULLY COMPLETD
     function install_Packages_Successfull {
         echo ""
         echo "Packages installed and updated the system successfully"
         sleep 2.0
     }
+
 # Step 3: Install software packages encapsuling function 
     function install_Packages_Parent {
-        install_Packages_Start
         sudo_Root install_Packges
-        install_Packages_Successfull
-    }    
+    }  
+
 # Step 4: Provision external drive - format with ext4 - edit fstab for symbolic link pointing to external drive at /media/hdd  
     function make_Drive {
-        echo ""
         UUIDEXTERNALDRIVE="$(sudo blkid -s UUID -o value /dev/sda)"
         echo UUID="$UUIDEXTERNALDRIVE" /media/hdd ext4 rw,nosuid,dev,noexec,noatime,nodiratime,auto,nouser,async,nofail 0 2 >> /etc/fstab
+    }
 
-    }           
+# Step 4: Provision external drive Parent
+    function make_Drive_Parent {
+        su_Root "make_Drive"
+    }
+
 # Step 5: Creating directory to add the hard disk and set the correct owner - verify the drive is mounted at /media/hdd and set owner as the user 'bitcoin' 
     function mount_Filesystem {
         echo ""
         mkdir /media/hdd
         sudo chown -R pi:pi /media/hdd
         sudo mount -a   
-
     }
+
+# Step 5: Creating directory to add the hard disk.. Parent
+    function mount_Filesystem_Parent {
+        su_Root "mount_Filesystem"
+    }
+
 # Step 5: Verify Filesystem is mounted at /media/hdd
     function verify_Mount_AND_Set_Ownership {
         echo ""
@@ -140,16 +167,12 @@
         df /media/hdd
         echo ""
         read -p "Press any key to proceed or 'control + c to exit'..."
-    
-    }     
+    }  
+
 # Step 5: Create directory 'bitcoin' on external drive and set the ownership to user 'bitcoin' 
     function make_Bitcoin_Directory {
         mkdir /media/hdd/bitcoin
-    }             
-# Step 5: Create directory 'bitcoin' on external drive and set the ownership to user 'bitcoin' 
-    function make_Bitcoin_Directory_Parent {
-        make_Bitcoin_Directory
-    }     
+    }                 
 
 # Step 6: Moving system swap file from SD card to external drive
     function move_Swap_File_Start {
@@ -169,28 +192,27 @@
         sudo mkswap /media/swapfile
         sudo /sbin/dphys-swapfile setup
         sudo /sbin/dphys-swapfile swapon
-
     }
   
 # Step 6: Moving system swap file from SD card to external drive Encapsulated
     function move_Swap_File_Parent {
         su_Root "move_Swap_File"
-
     }
+
 # Step 7: Start the install of Uncomplicated Firewall - configure for Bitcoin, Lightning, and Electrum, - install fail2ban
     function ufw_Install_Start () {
         echo "IMPORTANT - You must forward ports on your router and / or modem as explained in the instructions"
         echo ""
-        sleep 4.0
-        echo "ONLY SSH and LND will be accessible from outside your home network over the WAN port"
+        sleep 5.0
+        echo "ONLY SSH and LND will be accessible from outside your home network over the WAN port and VPN tunnel"
         echo ""
-        sleep 4.0
+        sleep 5.0
         echo "This is the prefered security model for Bitcoin"
         echo ""
-        sleep 4.0
+        sleep 5.0
         echo ""
-        echo ""
-        echo "Installing Uncompicated Firewall and fail2ban - this will take about ~5 minutes"
+        echo "-----------------------------------------------------------------------------------------------"
+        echo "Installing and configuring Uncompicated Firewall and fail2ban - this will take about ~5 minutes"
         echo ""
 
     }  
@@ -258,6 +280,7 @@
     function download_AND_Install_Bitcoin {
         mkdir /home/pi/download
         cd /home/pi/download
+        rm -rf /home/pi/download/*.*
         wget https://bitcoincore.org/bin/bitcoin-core-0.18.1/bitcoin-0.18.1-arm-linux-gnueabihf.tar.gz
         wget https://bitcoincore.org/bin/bitcoin-core-0.18.1/SHA256SUMS.asc
         wget https://bitcoin.org/laanwj-releases.asc
@@ -286,7 +309,7 @@
         gpg --verify SHA256SUMS.asc
         echo ""
         echo "----------------------------------------------------------------------------"
-        echo "Primary key fingerprint :01EA 5486 DE18 A882 D4C2 6845 90C8 019E 36C2 E964 <------ The fingerprint above MUST match this one!" 
+        echo "Primary key fingerprint:  01EA 5486 DE18 A882 D4C2 6845 90C8 019E 36C2 E964 <------ The fingerprint directly above MUST match this one!" 
         echo ""
         echo ""
         echo "Press any key to proceed ONLY if the fingerprint matches and gpg says 'Good signature from Wladimir J. van der Laan'"
@@ -381,9 +404,6 @@
         sudo systemctl enable bitcoind_mainnet.service
         sudo systemctl start bitcoind_mainnet.service
         sudo systemctl start bitcoind_testnet.service 
-        sudo systemctl status bitcoind_testnet.service
-        sudo systemctl status bitcoind_mainnet.service
-        
         #/run/user/1000
     }     
 
@@ -558,7 +578,7 @@ function electrum_Wallet_Desktop_Shortcut_Mainnet {
 
 # Step 15: Download EPS config.ini for mainnet and edit append user given rps creds parent 
     function copy_EPS_Mainnet_Parent {
-         "copy_EPS_Testnet" 
+         "copy_EPS_Mainnet" 
     }
 
 # Step 15: Download EPS config.ini for testnet and append user given rps creds 
@@ -581,12 +601,6 @@ function electrum_Wallet_Desktop_Shortcut_Mainnet {
         /home/pi/.local/bin/electrum-personal-server /home/pi/eps_mainnet/electrum-personal-server/config.ini
         /home/pi/.local/bin/electrum-personal-server /home/pi/eps_mainnet/electrum-personal-server/config.ini
     }  
-
-# Step 15: Start EPS parent 
-    function start_EPS_Parent {
-        echo "Enter your 'bitcoin' user password [A] to finish the install of EPS"
-         "start_EPS" 
-    } 
 
 # Step 15: Create system daemon to auto start EPS after Bitcoind synced  
     function auto_Start_EPS {
@@ -621,7 +635,7 @@ function electrum_Wallet_Desktop_Shortcut_Mainnet {
 
 
 # Step 16 install hardware wallet support for Trezor for Electrum Wallet
-    fuction install_Hardware_Wallet_Support_Trezor {
+    function install_Hardware_Wallet_Support_Trezor {
         sudo apt update
         sudo apt install libhidapi-hidraw0 libhidapi-libusb0
         sudo apt install libusb-devel systemd-devel
@@ -641,7 +655,7 @@ function electrum_Wallet_Desktop_Shortcut_Mainnet {
 
 
 # Step 16 install hardware wallet support
-    fuction install_Hardware_Wallet_Support_Trezor {
+    function install_Hardware_Wallet_Support_Trezor {
         su_Root "install_Hardware_Wallet_Support"
     }    
 
@@ -659,6 +673,17 @@ function electrum_Wallet_Desktop_Shortcut_Mainnet {
         source /home/pi/.bash_aliases 
 
     }
+
+ # Download Bitcoin - LND - Electrum preconfigured aliases, save to the external drive and then create a symbolic link for all users
+    function install_Team_Viewer {
+        cd /home/pi/download
+        sudo apt-get update -y
+        sudo apt-get upgrade -y
+        wget https://download.teamviewer.com/download/linux/teamviewer-host_armhf.deb
+        sudo dpkg -i teamviewer-host_armhf.deb -y
+        sudo apt --fix-broken install -y
+    }
+
 ## Body of code
 echo ""
 echo ""
@@ -666,15 +691,15 @@ echo "****************************************************"
 echo "*  Bitcoin - LND - Electrum Wallet Install Script  *"
 echo "****************************************************"
 
-sleep 0.25
+sleep 2.0
+
 # - 1: set users 'root' & 'pi' to password [A] and create user 'bitcoin' and assign it password [A]
 echo "--------------------------------------------------------------------------"
 echo "Step 1: Set your password [A] to 'pi' and 'root' users"
 echo "--------------------------------------------------------------------------"
-    echo ""
     echo ""  
         create_Passwords_Users 
-        sleep 3.0
+        sleep 1.5
     echo ""
     echo ""
 # set system host name     
@@ -682,12 +707,14 @@ echo "--------------------------------------------------------------------------
 echo "Step 2: Set system host name used to identify your Pi over a network" 
 echo "--------------------------------------------------------------------------"
     echo ""
+    echo "Create the network name used to identify your node when online"
+    echo ""    
         sleep 2.0 
     read -r -p "Enter the host name for your Pi `echo $'\n> '`" USERGIVENHOSTNAME
-        create_Hostname
-        change_Hosts
+        suppress change_Hostname_Hosts_Parent
+    echo ""    
     echo "Your Pi host name updated was successfully set to "$USERGIVENHOSTNAME""
-        sleep 3.0
+        sleep 1.5
     echo ""
     echo ""
 # installing necessary software packages then update and upgrade the system [apt-get install htop git curl bash-completion jq dphys-swapfile dirmngr] then apt-get update / upgrade   
@@ -696,72 +723,96 @@ echo "Step 3: Install the necessary software packages for your Pi and updating"
 echo "--------------------------------------------------------------------------"
     echo "" 
         install_Packages_Start
-        install_Packages_Parent
-        #install_Packages_Successfull
+        suppress install_Packages_Parent
+        install_Packages_Successfull
     echo ""
     echo ""
 # Provision external drive - format with ext4 - edit fstab for symbolic link pointing to external drive at /media/hdd - mount the drive and set owner as the user 'bitcoin'  
 echo "--------------------------------------------------------------------------"
-echo "Step 4: Provisioning your external drive, "
+echo "Step 4: Provisioning your external drive"
 echo "--------------------------------------------------------------------------"
     echo ""
     echo "VERY IMPORTANT - PLEASE READ"
-        sleep 3.0
+        sleep 2.0
     echo ""         
     echo "This step will require that you have only ONE external drive connected to your Pi"
     echo ""
         sleep 2.0
-    echo "The contents of the drive will be wiped clean and the drive will be formatted for Ext4"
-    echo "--------------------------------------------------------------------------------------"
-    echo "--------------------------------------------------------------------------------------"
+    echo "The drive will be wiped clean and formatted as ext4 unless you already have the bitcoin directory on your drive - then it will skip this part"
+    echo "---------------------------------------------------------------------------------------------------------------------------------------------"
+    echo "---------------------------------------------------------------------------------------------------------------------------------------------"
     echo ""
-    read -p "Press any key to resume install after you have confimred only one external drive is connected to your Pi..."
+    sleep 2.0
+    read -p "Press any key to resume - again the script will check to make sure it does NOT overright your bitcoin directory..."
     echo ""
-        sleep 3.0
+        sleep 5.0
     echo ""
-    echo "You will be asked to confirm you want to proceed and format the drive, enter "y" "
-    echo ""
-    echo ""
-        #sudo mkfs.ext4 /dev/sd(a)
-        sudo_Root make_Drive 
-    echo "Your external drive was created successfully"
-        sleep 3.0 
-    echo ""
-    echo ""
-# Switching to user 'bitcoin' and creating a directiry called "bitcoin" on the external drive
-echo "------------------------------------------------------"
-echo "Step 5: Verify 'Filesystem' has been mounted to drive "
-echo "------------------------------------------------------"
-    echo ""
-        sudo_Root mount_Filesystem
-        verify_Mount_AND_Set_Ownership
-        make_Bitcoin_Directory_Parent
-    echo ""    
-    echo "Your external hard drive is then attached to the file system and can be accessed as a regular folder now"    
-        sleep 4.0   
-    echo ""
-    echo ""
+        if [ ! -d /media/hdd/bitcoin ]; then
+                read -r -p "Enter 'yes' to confirm formatting of your external drive `echo $'\n> '`" CONFIRMFORMAT
+                    if [[ "$CONFIRMFORMAT" = 'yes' || "$CONFIRMFORMAT" = 'Yes' ]]; then
+                        echo "Formatting your drive"
+                        echo "You will be asked to confirm you want to proceed and format the drive, enter "y" "
+                        sudo mkfs.ext4 /dev/sda
+                        suppress make_Drive_Parent
+                        echo "Your external drive was created successfully"
+                        echo ""
+                        echo ""
+                        # Switching to user 'bitcoin' and creating a directiry called "bitcoin" on the external drive
+                        echo "------------------------------------------------------"
+                        echo "Step 5: Verify 'Filesystem' has been mounted to drive "
+                        echo "------------------------------------------------------"
+                            echo ""
+                                suppress mount_Filesystem_Parrent
+                                verify_Mount_AND_Set_Ownership
+                                suppress make_Bitcoin_Directory
+                            echo ""    
+                            echo "Your external hard drive is then attached to the file system and can be accessed as a regular folder now"    
+                                sleep 4.0   
+                            echo ""
+                            echo ""
+                     else
+                        echo ""
+                        echo "Restarting Step 4: Provisioning your external drive"
+                        echo ""
+                        sleep 1.5
+                    fi
+            else
+                echo ""
+                echo "Skipping formatting and mounting your drive since a 'bitcoin' directory already exists" 
+                echo ""
+                echo ""
+                sleep 3.0
+            fi 
+
 # Moving system swap file from SD card to external drive
 echo "--------------------------------------------------------------------------"
 echo "Step 6: Moving location of system 'Swap File'"
 echo "--------------------------------------------------------------------------"
-    echo ""  
-        move_Swap_File_Start
-        move_Swap_File_Parent
     echo ""
-    echo "System Swap File has been moved successfully"
-        sleep 3.0
-    echo ""
-    echo ""
+         if [ ! -f /media/swapfile ]; then
+                move_Swap_File_Start
+                suppress move_Swap_File_Parent
+                echo ""
+                echo "System Swap File has been moved successfully"
+                echo ""
+                echo ""
+                sleep 2.5
+        else
+                echo ""
+                echo "System swapfile has already been moved to your external drive - skipping this step"
+                echo ""
+                echo ""
+                sleep 3.5
+        fi          
 # Installing Uncomplicated Firewall and configuring it for Bitcoin, LND and Electrum
 echo "--------------------------------------------------------------------------"
 echo "Step 7: Installing and configuring Uncomplicated Firewall & fail2ban"
 echo "--------------------------------------------------------------------------"
     echo ""
         ufw_Install_Start
-        ufw_Install_Parent_Function
+        suppress ufw_Install_Parent_Function
         ufw_Enable_Parent_Function
-        ufw_Systemctrl_Parent_Function
+        suppress ufw_Systemctrl_Parent_Function
     echo ""
     echo "Uncomplicated Firewall and fail2ban have been install and configured successfully"
         sleep 3.0
@@ -784,10 +835,10 @@ echo "--------------------------------------------------------------------------
 echo "Step 9: Downloading, Install and verify Bitcoin Core"
 echo "--------------------------------------------------------------------------"
     echo ""
-    echo "Downloading and installing Bitcoin version 0.18.1 32 bit ARM"
+    echo "Downloading and installing Bitcoin version 0.18.1 32 bit ARM for Linux"
     echo ""  
+    sleep 3.0
         download_AND_Install_Bitcoin   
-        sleep 2.0
     echo ""
     echo "Bitcoin Core has been verified and installed successfully"
         sleep 3.0
@@ -801,7 +852,7 @@ echo "--------------------------------------------------------------------------
     echo "Creating Bitcoin core home directory and linking it to the external drive"
     echo ""
         sleep 3.0      
-            create_Bitcoin_Core_Directory   
+            suppress create_Bitcoin_Core_Directory   
     echo ""
     echo "Successfully linked bitcoin core installed on the external drive, to your home directory"
         sleep 3.0
@@ -813,7 +864,7 @@ echo "Step 11: Download Bitcoin Core for Mainnet and Testnet config file"
 echo "--------------------------------------------------------------------------"
     echo ""
     echo "Configuring Bitcoin Core for mainnet and testnet, this will take a few moments" 
-    download_Bitcoin_Conf_File_Complete_Parent        
+    suppress download_Bitcoin_Conf_File_Complete_Parent        
     echo ""
     echo ""
     echo "Bitcoin Core mainnet and testnet config files downloaded successfully"
@@ -828,11 +879,10 @@ echo "--------------------------------------------------------------------------
     echo "Please set your RPC username and password [B] for Bitcoin mainnet and testnet"
     echo ""
     echo ""
-        sleep 2.0
-    echo ""    
-         set_RPC_Creds
-         set_RPC_Creds_Bitcoin_Conf
-         copy_Bitcoin_Conf_Testnet3
+        sleep 2.0    
+        set_RPC_Creds
+        suppress set_RPC_Creds_Bitcoin_Conf
+        suppress copy_Bitcoin_Conf_Testnet3
     echo ""
     echo "RPC username and password for mainnet and testnet were configured successfully"
         sleep 3.0
@@ -846,17 +896,24 @@ echo "--------------------------------------------------------------------------
     echo "Creating a system deamon that will auto load Bitcoin Core mainnet and testnet on boot"
     echo ""
     echo ""
-         set_Bitcoind_Auto
-         enable_Bitcoind_Auto_Parent
-        
-    echo ""
-    echo "Bitcoind was successfully configured to auto boot in the backgroud"
-    echo ""
-    echo ""
-    echo "Mainnet and testnet will now auto boot simultaneously when pi is powered on or rebooted"
-        sleep 3.0
-    echo ""
-    echo ""
+        if [ ! -f /etc/systemd/system/bitcoin_testnet.service ]; then
+                #set_Bitcoind_Auto
+                #enable_Bitcoind_Auto_Parent
+                echo "Bitcoind was successfully configured to auto boot in the backgroud"
+                echo ""
+                sleep 3.0
+                echo ""
+                echo "Mainnet and testnet will now auto boot simultaneously when pi is powered on or rebooted"
+                echo ""
+                echo ""
+                sleep 3.0
+        else
+                echo "Bitcoin daemon already exists - skipping this step"
+                sleep 3.0
+                echo ""
+                echo ""
+        fi
+
 # Install Electrum Wallet and configure it to auto connect to node open on boot and reboot   
 echo "------------------------------------------------------------------------------"
 echo "Step 14: Installing and configuring Electrum Wallet for Mainnet and Testnet"
@@ -998,34 +1055,56 @@ echo "--------------------------------------------------------------------------
     echo "Installing Electrum Personal Server"
     echo ""
         extract_EPS_Parent
-        set_EPS_Owner_Bitcoin_Parent
-        copy_EPS_Testnet_Parent
+        copy_EPS_Mainnet_Parent
         sudo sed -i "s/var2/$USERGIVENRPCMAINNETUSERNAME/g" /home/pi/eps_mainnet/electrum-personal-server/config.ini
         sudo sed -i "s/bin1/$USERGIVENRPCMAINNETPASSWORD/g" /home/pi/eps_mainnet/electrum-personal-server/config.ini
         sudo sed -i "s/replacempkmainnet/$USERMASTERKEYMAINNET/g" /home/pi/eps_mainnet/electrum-personal-server/config.ini
-        set_EPS_Owner_Bitcoin_Parent
-        copy_EPS_Mainnet_Parent
+        copy_EPS_Testnet_Parent
         sudo sed -i "s/var2/$USERGIVENRPCTESTNETUSERNAME/g" /home/pi/eps_testnet/electrum-personal-server/config.ini
         sudo sed -i "s/bin1/$USERGIVENRPCTESTNETPASSWORD/g" /home/pi/eps_testnet/electrum-personal-server/config.ini
         sudo sed -i "s/replacempktestnet/$USERMASTERKEYTESTNET/g" /home/pi/eps_testnet/electrum-personal-server/config.ini
-        set_EPS_Owner_Bitcoin_Parent
         get_Bitlinc_Aliases
 
     echo ""
     echo "Electrum Personal Server will now SYNC with the blockchain - this can take upwards of 30 minutes since there are two chains to sync"
     echo ""
+    sleep 2.0
     echo "After EPS has configured all the address it will reload - please just let it work"
     echo ""
+    sleep 2.0
         run_EPS_Mainnet
         run_EPS_Testnet
         auto_Start_EPS_Parent
+    echo ""
+    echo ""    
     echo "Electrum Personal Server was installed and configured for mainnet and testnet successfully"
     echo ""
     echo ""
+    # Install Team Viewer 
+echo "--------------------------------------------"
+echo "Step 16: Downloading and Install Team Viewer"
+echo "--------------------------------------------"
+echo ""
+    echo "Installing Team Viewer for simple remote access to your Node - this is only suggested for Bitcoin testnet"
     echo ""
-    
-echo "END OF SCIPT"
-
+        sleep 4.0
+        read -r -p "Enter 'yes' to confirm installing Team Viewer or anything else to skip install `echo $'\n> '`" CONFIRMTEAMVIEWER
+                    if [[ "$CONFIRMTEAMVIEWER" = 'yes' || "$CONFIRMTEAMVIEWER" = 'Yes' ]]; then
+                        echo "Installing Team Viewer - this will take about 3 minutes..."
+                            install_Team_Viewer
+                            echo ""    
+                            echo "Team Viewer has been successfully installed"    
+                                sleep 2.0   
+                            echo ""
+                            echo ""
+                     else
+                        echo ""
+                        echo "Skipping Team Viewer install"
+                        echo ""
+                        sleep 2.5
+                    fi
+    echo "END OF SCIPT"
+    sleep 3.0
     sudo reboot
         
 
