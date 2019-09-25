@@ -166,7 +166,7 @@
         echo "___________________________________________________________________________________"
         df /media/hdd
         echo ""
-        read -p "Press any key to proceed or 'control + c to exit'..."
+        read -p "Press any key to proceed or 'ctrl + z to exit'..."
     }  
 
 # Step 5: Create directory 'bitcoin' on external drive and set the ownership to user 'bitcoin' 
@@ -733,56 +733,68 @@ echo "Step 4: Provisioning your external drive"
 echo "--------------------------------------------------------------------------"
     echo ""
     echo "VERY IMPORTANT - PLEASE READ"
-        sleep 2.0
+        sleep 4.0
     echo ""         
     echo "This step will require that you have only ONE external drive connected to your Pi"
     echo ""
-        sleep 2.0
+        sleep 4.0
     echo "The drive will be wiped clean and formatted as ext4 unless you already have the bitcoin directory on your drive - then it will skip this part"
     echo "---------------------------------------------------------------------------------------------------------------------------------------------"
     echo "---------------------------------------------------------------------------------------------------------------------------------------------"
     echo ""
-    sleep 2.0
-    read -p "Press any key to resume - again the script will check to make sure it does NOT overright your bitcoin directory..."
+    sleep 3.0
+    read -p "Press any key to resume - again the script will check to make sure it does NOT delete your bitcoin directory..."
     echo ""
         sleep 5.0
     echo ""
-        if [ ! -d /media/hdd/bitcoin ]; then
-                read -r -p "Enter 'yes' to confirm formatting of your external drive `echo $'\n> '`" CONFIRMFORMAT
+        UUIDEXTERNALDRIVE="$(sudo blkid -s UUID -o value /dev/sda)"
+        if [ ! -d /media/pi/"$UUIDEXTERNALDRIVE"/bitcoin ]; then
+                read -r -p "Enter 'yes' to confirm formatting of your external drive or ctrl + z to exit `echo $'\n> '`" CONFIRMFORMAT
                     if [[ "$CONFIRMFORMAT" = 'yes' || "$CONFIRMFORMAT" = 'Yes' ]]; then
                         echo "Formatting your drive"
-                        echo "You will be asked to confirm you want to proceed and format the drive, enter "y" "
+                        echo "Confirm one more time by entering "y" "
                         sudo mkfs.ext4 /dev/sda
-                        suppress make_Drive_Parent
                         echo "Your external drive was created successfully"
                         echo ""
-                        echo ""
-                        # Switching to user 'bitcoin' and creating a directiry called "bitcoin" on the external drive
-                        echo "------------------------------------------------------"
-                        echo "Step 5: Verify 'Filesystem' has been mounted to drive "
-                        echo "------------------------------------------------------"
-                            echo ""
-                                suppress mount_Filesystem_Parrent
-                                verify_Mount_AND_Set_Ownership
-                                suppress make_Bitcoin_Directory
-                            echo ""    
-                            echo "Your external hard drive is then attached to the file system and can be accessed as a regular folder now"    
-                                sleep 4.0   
-                            echo ""
-                            echo ""
+                        sleep 2.0
                      else
                         echo ""
-                        echo "Restarting Step 4: Provisioning your external drive"
+                        echo "Skipping formating your external drive since your 'bitcoin' dirctory already exists"
                         echo ""
-                        sleep 1.5
+                        sleep 2.0
                     fi
             else
                 echo ""
-                echo "Skipping formatting and mounting your drive since a 'bitcoin' directory already exists" 
+                echo "Skipping formatting your drive since your 'bitcoin' directory already exists" 
                 echo ""
                 echo ""
                 sleep 3.0
             fi 
+        if [ ! -d /media/hdd ]; then
+                echo "------------------------------------------------------"
+                echo "Step 5: Verify 'Filesystem' has been mounted to drive "
+                echo "------------------------------------------------------"
+                    echo ""
+                    echo "Mounting external drive to your 'pi's file system"
+                    echo ""
+                    sleep 2.0
+                        suppress make_Drive_Parent
+                        suppress mount_Filesystem_Parent
+                        verify_Mount_AND_Set_Ownership
+                        suppress make_Bitcoin_Directory
+                    echo ""    
+                    echo "Your external hard drive is then attached to the file system and can be accessed as a regular folder now"    
+                        sleep 4.0   
+                    echo ""
+                    echo ""
+            else
+                echo ""
+                echo "Skipping mounting your drive since the link exists already" 
+                echo ""
+                echo ""
+                sleep 3.0
+            fi             
+
 
 # Moving system swap file from SD card to external drive
 echo "--------------------------------------------------------------------------"
@@ -837,11 +849,11 @@ echo "--------------------------------------------------------------------------
     echo ""
     echo "Downloading and installing Bitcoin version 0.18.1 32 bit ARM for Linux"
     echo ""  
-    sleep 3.0
+    sleep 4.0
         download_AND_Install_Bitcoin   
     echo ""
     echo "Bitcoin Core has been verified and installed successfully"
-        sleep 3.0
+        sleep 6.0
     echo ""
     echo ""
 # Creating Bitcoin Core directory on the external drive and linking it to your /home/pi/.bitcoin
@@ -897,8 +909,8 @@ echo "--------------------------------------------------------------------------
     echo ""
     echo ""
         if [ ! -f /etc/systemd/system/bitcoin_testnet.service ]; then
-                #set_Bitcoind_Auto
-                #enable_Bitcoind_Auto_Parent
+                set_Bitcoind_Auto
+                enable_Bitcoind_Auto_Parent
                 echo "Bitcoind was successfully configured to auto boot in the backgroud"
                 echo ""
                 sleep 3.0
@@ -953,17 +965,17 @@ echo "--------------------------------------------------------------------------
     echo "*****************************************************************************************************"
     echo ""
     echo "Configuring..."
-        install_Electrum_Wallet_Dependencies_Parent
-        install_Electrum_Wallet
-        set_Electrum_Config_Ownership_Parent
-        sed -i "s/var2/$USERGIVENRPCTESTNETUSERNAME/g" /home/pi/.electrum/testnet/config
-        sed -i "s/bin1/$USERGIVENRPCTESTNETPASSWORD/g" /home/pi/.electrum/testnet/config
-        sed -i "s/var2/$USERGIVENRPCMAINNETUSERNAME/g" /home/pi/.electrum/config
-        sed -i "s/bin1/$USERGIVENRPCMAINNETPASSWORD/g" /home/pi/.electrum/config
+        suppress install_Electrum_Wallet_Dependencies_Parent
+        suppress install_Electrum_Wallet
+        suppress set_Electrum_Config_Ownership_Parent
+        suppress sed -i "s/var2/$USERGIVENRPCTESTNETUSERNAME/g" /home/pi/.electrum/testnet/config
+        suppress sed -i "s/bin1/$USERGIVENRPCTESTNETPASSWORD/g" /home/pi/.electrum/testnet/config
+        suppress sed -i "s/var2/$USERGIVENRPCMAINNETUSERNAME/g" /home/pi/.electrum/config
+        suppress sed -i "s/bin1/$USERGIVENRPCMAINNETPASSWORD/g" /home/pi/.electrum/config
         sudo rm -rf /etc/xdg/autostart/Elec*
-         electrum_Wallet_Desktop_Shortcut_Testnet
+        suppress electrum_Wallet_Desktop_Shortcut_Testnet
         sudo cp -avr /home/pi/Desktop/Electrum_Testnet.desktop /etc/xdg/autostart/Electrum_Testnet.desktop
-         electrum_Wallet_Desktop_Shortcut_Mainnet
+        suppress electrum_Wallet_Desktop_Shortcut_Mainnet
         sudo cp -avr /home/pi/Desktop/Electrum_Mainnet.desktop /etc/xdg/autostart/Electrum_Mainnet.desktop
     echo ""
     echo ""
@@ -1052,18 +1064,18 @@ echo "Primary key fingerprint: 0A8B 038F 5E10 CC27 89BF  CFFF EF73 4EA6 77F3 112
 echo "--------------------------------------------------------------------------"
     read -p "Press any key if everything matches or 'ctrl + z' to exit"
     echo ""
-    echo "Installing Electrum Personal Server"
+    echo "Installing Electrum Personal Server..."
     echo ""
-        extract_EPS_Parent
-        copy_EPS_Mainnet_Parent
-        sudo sed -i "s/var2/$USERGIVENRPCMAINNETUSERNAME/g" /home/pi/eps_mainnet/electrum-personal-server/config.ini
-        sudo sed -i "s/bin1/$USERGIVENRPCMAINNETPASSWORD/g" /home/pi/eps_mainnet/electrum-personal-server/config.ini
-        sudo sed -i "s/replacempkmainnet/$USERMASTERKEYMAINNET/g" /home/pi/eps_mainnet/electrum-personal-server/config.ini
-        copy_EPS_Testnet_Parent
-        sudo sed -i "s/var2/$USERGIVENRPCTESTNETUSERNAME/g" /home/pi/eps_testnet/electrum-personal-server/config.ini
-        sudo sed -i "s/bin1/$USERGIVENRPCTESTNETPASSWORD/g" /home/pi/eps_testnet/electrum-personal-server/config.ini
-        sudo sed -i "s/replacempktestnet/$USERMASTERKEYTESTNET/g" /home/pi/eps_testnet/electrum-personal-server/config.ini
-        get_Bitlinc_Aliases
+        suppress extract_EPS_Parent
+        suppress copy_EPS_Mainnet_Parent
+        suppress sudo sed -i "s/var2/$USERGIVENRPCMAINNETUSERNAME/g" /home/pi/eps_mainnet/electrum-personal-server/config.ini
+        suppress sudo sed -i "s/bin1/$USERGIVENRPCMAINNETPASSWORD/g" /home/pi/eps_mainnet/electrum-personal-server/config.ini
+        suppress sudo sed -i "s/replacempkmainnet/$USERMASTERKEYMAINNET/g" /home/pi/eps_mainnet/electrum-personal-server/config.ini
+        suppress copy_EPS_Testnet_Parent
+        suppress sudo sed -i "s/var2/$USERGIVENRPCTESTNETUSERNAME/g" /home/pi/eps_testnet/electrum-personal-server/config.ini
+        suppress sudo sed -i "s/bin1/$USERGIVENRPCTESTNETPASSWORD/g" /home/pi/eps_testnet/electrum-personal-server/config.ini
+        suppress sudo sed -i "s/replacempktestnet/$USERMASTERKEYTESTNET/g" /home/pi/eps_testnet/electrum-personal-server/config.ini
+        suppress get_Bitlinc_Aliases
 
     echo ""
     echo "Electrum Personal Server will now SYNC with the blockchain - this can take upwards of 30 minutes since there are two chains to sync"
@@ -1103,7 +1115,7 @@ echo ""
                         echo ""
                         sleep 2.5
                     fi
-    echo "END OF SCIPT"
+    echo "END OF SCIPT" 
     sleep 3.0
     sudo reboot
         
